@@ -1,13 +1,12 @@
 import random
 
-def allTuplesOfLength(x):
-    if x == 0:
-        return [()]
+def STANDARD_NOISE():
+    return 0.001
 
-    else:
-        oneLess = allTuplesOfLength(x-1)
-        
-        return [tuple([0]) + i for i in oneLess] + [tuple([1]) + i for i in oneLess]
+
+def POWER_ERROR_TRADEOFF(noise):
+    # Totally made up
+    return 1./noise  
 
 class Wire:
     def __init__(self):
@@ -56,7 +55,7 @@ class Bus:
 class LUT:
     global NUM_INPUTS
     
-    def __init__(self, inputs, output, tt, noise=0.001):
+    def __init__(self, inputs, output, tt, noise=STANDARD_NOISE()):
         self.inputs = inputs
         self.output = output
         self.tt = tt
@@ -73,6 +72,9 @@ class LUT:
         
     def countGates(self):
         return 1    
+        
+    def powerConsumption(self):
+        return POWER_ERROR_TRADEOFF(self.noise)
         
 class Circuit:
     def __init__(self, inputs, outputs, listOfSubcircuits):
@@ -96,104 +98,9 @@ class Circuit:
             
         return numGates
         
-Ground = Wire()
-Power = Wire()
-Power.setValue(1)        
+    def powerConsumption(self):
+        totalPower = 0.0
+        for subcircuit in self.listOfSubcircuits:
+            totalPower += subcircuit.powerConsumption()
             
-def And(inputs, output):        
-    assert len(inputs) == 2
-    return LUT(inputs, output, {(0,0):0, (0,1):0, (1,0):0, (1,1):1})
-
-def Or(inputs, output):
-    assert len(inputs) == 2
-    return LUT(inputs, output, {(0,0):0, (0,1):1, (1,0):1, (1,1):1})
-    
-def Nand(inputs, output):
-    assert len(inputs) == 2
-    return LUT(inputs, output, {(0,0):1, (0,1):1, (1,0):1, (1,1):0})
-    
-def Nor(inputs, output):
-    assert len(inputs) == 2
-    return LUT(inputs, output, {(0,0):1, (0,1):0, (1,0):0, (1,1):0})   
-    
-def Xor(inputs, output):
-    assert len(inputs) == 2
-    return LUT(inputs, output, {(0,0):0, (0,1):1, (1,0):1, (1,1):0})   
-    
-def Xnor(inputs, output):
-    assert len(inputs) == 2
-    return LUT(inputs, output, {(0,0):1, (0,1):0, (1,0):0, (1,1):1})       
-    
-def Maj3(inputs, output):
-    assert len(inputs) == 3
-    return LUT(inputs, output, {(0,0,0): 0,
-                                (0,0,1): 0,
-                                (0,1,0): 0,
-                                (0,1,1): 1,
-                                (1,0,0): 0,
-                                (1,0,1): 1,
-                                (1,1,0): 1,
-                                (1,1,1): 1})
-                                
-def Xor3(inputs, output):
-    assert len(inputs) == 3
-    return LUT(inputs, output, {(0,0,0): 0,
-                                (0,0,1): 1,
-                                (0,1,0): 1,
-                                (0,1,1): 0,
-                                (1,0,0): 1,
-                                (1,0,1): 0,
-                                (1,1,0): 0,
-                                (1,1,1): 1})
-                                
-def oneBitAdder(inputs, outputs):
-    assert len(inputs) == 3
-    assert len(outputs) == 2
-    return Circuit(inputs, outputs, [Xor3(inputs, outputs[0]), Maj3(inputs, outputs[1])])
-
-# Takes as input two n-bit numbers and returns a (n+1)-bit number    
-def nBitAdder(numBits, inputs, outputs):
-    assert len(inputs) == 2*numBits
-    assert len(outputs) == numBits+1
-    
-    global Ground
-    
-    listOfLittleAdders = []
- 
-    for i in range(numBits-1, -1, -1):
-        if i == numBits-1:
-            # first one has no carry-in
-            carryIn = Ground
-        
-        if i == 0:
-            carryOut = outputs[0]
-        else:    
-            carryOut = Wire()
-             
-        firstInput = inputs[i]
-        secondInput = inputs[i+numBits]
-        thirdInput = carryIn
-        output = outputs[i+1]
-            
-        listOfLittleAdders.append(oneBitAdder([firstInput, secondInput, thirdInput], \
-            [output, carryOut]))
-            
-        carryIn = carryOut
-        
-    return Circuit(inputs, outputs, listOfLittleAdders)        
-        
-        
-firstInputs = Bus(4)
-secondInputs = Bus(4)
-
-inputs = firstInputs.merge(secondInputs)
-outputs = Bus(5)
-                                            
-adder = nBitAdder(4, inputs, outputs)
-
-firstInputs.setValue((0,1,1,0))
-secondInputs.setValue((1,1,0,1))
-
-adder.evaluate()
-
-print outputs
+        return totalPower
